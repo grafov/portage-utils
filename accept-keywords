@@ -1,0 +1,50 @@
+#!/bin/env python3
+
+import sys, os
+import portage
+
+accept_keywords="/etc/portage/package.accept_keywords/%s"
+
+def main():
+    """ Parse portage input and write accept keywords to appropriate files.
+
+    The input example:
+    # required by media-libs/imlib2-1.4.5-r1
+    # required by media-libs/giblib-1.2.4
+    # required by media-gfx/scrot-0.8
+    # required by @selected
+    # required by @world (argument)
+    =media-libs/freetype-2.5.3-r1 ~amd64
+    # required by media-video/ffmpeg-2.2.3-r1[twolame,encode]
+    # required by media-video/vlc-2.1.4[postproc]
+    # required by app-office/libreoffice-4.2.3.3-r1[vlc]
+    # required by @selected
+    # required by @world (argument)
+    =media-sound/twolame-0.3.13-r1 ~amd64
+    """
+    for line in sys.stdin:
+        line=line.strip()
+        if not line:
+            continue
+        if line[0] == "#":
+            continue
+        package, keyword = line.split()
+        if not keyword or not package:
+            continue
+        if package[0] in ("<", "=", ">"):
+            package = package[1:]
+        cat, pkgname, version, rev = portage.catpkgsplit(package)
+        if os.path.exists(accept_keywords % cat):
+            with open(accept_keywords % cat) as f:
+                dup = False
+                for line in f:
+                    if line.startswith("%s/%s" % (cat, pkgname)):
+                        dup = True
+                        break
+                if dup:
+                    continue
+        with open("/etc/portage/package.accept_keywords/%s" % cat, "a") as f:
+            f.write("%s/%s\t\t\t%s\n" % (cat, pkgname, keyword))
+
+if __name__ == "__main__":
+    main()
